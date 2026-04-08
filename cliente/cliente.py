@@ -51,3 +51,11 @@ def enviar_heartbeat(sock_udp: socket.socket, nodo: str, servidor: str, port_udp
     # Envía un paquete UDP para indicar que el nodo sigue activo
     datos = json.dumps({"nodo": nodo, "tipo": "heartbeat"}).encode()
     sock_udp.sendto(datos, (servidor, port_udp))
+
+
+def conectar_tcp(servidor: str, port_tcp: int) -> socket.socket:
+    # Crea y conecta un socket TCP al servidor
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((servidor, port_tcp))
+    logging.info("Conectado al servidor %s:%d", servidor, port_tcp)
+    return sock
