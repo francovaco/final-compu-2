@@ -27,3 +27,27 @@ def obtener_temperatura() -> float | None:
     except (AttributeError, NotImplementedError):
         pass
     return None
+
+
+def recolectar_metricas() -> dict:
+    # Lee CPU, RAM, disco y temperatura con psutil
+    return {
+        "nodo": socket.gethostname(),
+        "cpu": psutil.cpu_percent(interval=1),
+        "ram": psutil.virtual_memory().percent,
+        "disco": psutil.disk_usage("/").percent,
+        "temperatura": obtener_temperatura(),
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+def enviar_metricas(sock: socket.socket, metricas: dict) -> None:
+    # Serializa las métricas a JSON y las envía por TCP
+    datos = json.dumps(metricas).encode() + b"\n"
+    sock.sendall(datos)
+
+
+def enviar_heartbeat(sock_udp: socket.socket, nodo: str, servidor: str, port_udp: int) -> None:
+    # Envía un paquete UDP para indicar que el nodo sigue activo
+    datos = json.dumps({"nodo": nodo, "tipo": "heartbeat"}).encode()
+    sock_udp.sendto(datos, (servidor, port_udp))
