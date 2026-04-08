@@ -102,3 +102,27 @@ def correr(args: argparse.Namespace) -> None:
                 logging.warning("Error enviando heartbeat: %s", e)
 
         time.sleep(args.intervalo)
+
+
+def main() -> None:
+    # Parsea argumentos, configura logging e inicia el agente
+    parser = argparse.ArgumentParser(description="Agente de monitoreo de servidor")
+    parser.add_argument("--servidor", default="localhost", help="Host del servidor central")
+    parser.add_argument("--port-tcp", type=int, default=9000, help="Puerto TCP del servidor")
+    parser.add_argument("--port-udp", type=int, default=9001, help="Puerto UDP del servidor")
+    parser.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre envíos de métricas")
+    parser.add_argument("--intervalo-heartbeat", type=float, default=10.0, help="Segundos entre heartbeats")
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    args = parser.parse_args()
+
+    configurar_logging(args.log_level)
+    logging.info("Iniciando agente en nodo '%s'", socket.gethostname())
+
+    try:
+        correr(args)
+    except KeyboardInterrupt:
+        logging.info("Agente detenido")
+
+
+if __name__ == "__main__":
+    main()
