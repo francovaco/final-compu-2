@@ -1,11 +1,10 @@
 import argparse
 import json
 import logging
+import random
 import socket
 import time
 from datetime import datetime
-
-import psutil
 
 
 def configurar_logging(nivel: str) -> None:
@@ -16,27 +15,14 @@ def configurar_logging(nivel: str) -> None:
     )
 
 
-def obtener_temperatura() -> float | None:
-    # Retorna la temperatura de la CPU o None si no está disponible
-    try:
-        temps = psutil.sensors_temperatures()
-        if temps:
-            for entradas in temps.values():
-                if entradas:
-                    return entradas[0].current
-    except (AttributeError, NotImplementedError):
-        pass
-    return None
-
-
 def recolectar_metricas() -> dict:
-    # Lee CPU, RAM, disco y temperatura con psutil
+    # Genera métricas aleatorias simuladas
     return {
         "nodo": socket.gethostname(),
-        "cpu": psutil.cpu_percent(interval=1),
-        "ram": psutil.virtual_memory().percent,
-        "disco": psutil.disk_usage("/").percent,
-        "temperatura": obtener_temperatura(),
+        "cpu": round(random.uniform(10, 95), 1),
+        "ram": round(random.uniform(20, 90), 1),
+        "disco": round(random.uniform(30, 85), 1),
+        "temperatura": round(random.uniform(40, 95), 1),
         "timestamp": datetime.now().isoformat(),
     }
 
