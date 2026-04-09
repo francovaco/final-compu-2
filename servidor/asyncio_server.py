@@ -47,3 +47,28 @@ async def manejar_cliente_tcp(
     finally:
         logging.info("Cliente desconectado: %s:%d", *addr)
         writer.close()
+        await writer.wait_closed()
+
+
+async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None:
+    # Levanta el servidor TCP y UDP y los mantiene corriendo indefinidamente
+    servidor_tcp = await asyncio.start_server(
+        lambda r, w: manejar_cliente_tcp(r, w, queue),
+        host=args.host,
+        port=args.port_tcp,
+    )
+
+    loop = asyncio.get_running_loop()
+    transporte_udp, _ = await loop.create_datagram_endpoint(
+        lambda: HeartbeatProtocol(queue),
+        local_addr=(args.host, args.port_udp),
+    )
+
+    logging.info("Servidor TCP escuchando en %s:%d", args.host, args.port_tcp)
+    logging.info("Servidor UDP escuchando en %s:%d", args.host, args.port_udp)
+
+    try:
+        async with servidor_tcp:
+            await servidor_tcp.serve_forever()
+    finally:
+        transporte_udp.close()
