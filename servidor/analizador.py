@@ -7,7 +7,7 @@ from multiprocessing import Queue, Lock
 from queue import Empty
 
 
-#Base de datos
+# Base de datos
 def inicializar_db(db_metricas: str) -> None:
     # Crea las tablas si no existen
     conn = sqlite3.connect(db_metricas)
@@ -56,7 +56,7 @@ def guardar_alerta(alerta: dict, db_metricas: str) -> None:
     conn.close()
 
 
-#Análisis de métricas y generación de alertas
+# Análisis de métricas y generación de alertas
 def evaluar_umbrales(metrica: dict, umbrales: dict) -> list[dict]:
     # Compara cada métrica contra su umbral y retorna las alertas generadas
     alertas = []
@@ -91,7 +91,7 @@ def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str) -> 
     return alertas
 
 
-#Detección de nodos caídos
+# Detección de nodos caídos
 def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
     # Detecta nodos que no enviaron heartbeat en más de `timeout` segundos
     ahora = time.monotonic()
@@ -107,3 +107,42 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
             with db_lock:
                 guardar_alerta(alerta, db_metricas)
             del heartbeats[nodo]
+
+
+# Loop principal
+def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
+    # Consume mensajes de la Queue y los procesa con un ProcessPoolExecutor
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+    logging.info("Analizador iniciado con %d workers", args.workers)
+
+    inicializar_db(args.db_metricas)
+
+    umbrales = {
+        "cpu": args.threshold_cpu,
+        "ram": args.threshold_ram,
+        "disco": args.threshold_disco,
+        "temperatura": args.threshold_temperatura,
+    }
+
+    heartbeats: dict[str, float] = {}
+
+    with ProcessPoolExecutor(max_workers=args.workers) as executor:
+        while True:
+            try:
+                mensaje = queue.get(timeout=5)
+                tipo = mensaje.get("tipo")
+
+                if tipo == "heartbeat":
+                    heartbeats[mensaje["nodo"]] = time.monotonic()
+                    logging.debug("Heartbeat de %s", mensaje["nodo"])
+
+                elif tipo == "metrica":
+                    executor.submit(analizar, mensaje, db_lock, umbrales, args.db_metricas)
+
+            except Empty:
+                pass
+
+            verificar_nodos_caidos(heartbeats, args.heartbeat_timeout, db_lock, args.db_metricas)
