@@ -89,3 +89,21 @@ def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str) -> 
                     alerta["tipo"].upper(), alerta["nodo"], alerta["valor"])
 
     return alertas
+
+
+#Detección de nodos caídos
+def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
+    # Detecta nodos que no enviaron heartbeat en más de `timeout` segundos
+    ahora = time.monotonic()
+    for nodo in list(heartbeats):
+        if ahora - heartbeats[nodo] > timeout:
+            logging.critical("ALERTA [NODO_CAIDO] nodo=%s sin heartbeat por %.0fs", nodo, timeout)
+            alerta = {
+                "nodo": nodo,
+                "tipo": "nodo_caido",
+                "valor": 0.0,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            }
+            with db_lock:
+                guardar_alerta(alerta, db_metricas)
+            del heartbeats[nodo]
