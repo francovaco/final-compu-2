@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import multiprocessing
+import socket
 from argparse import Namespace
 
 
@@ -17,9 +18,9 @@ class HeartbeatProtocol(asyncio.DatagramProtocol):
             mensaje = json.loads(data.decode())
             mensaje["tipo"] = "heartbeat"
             self.queue.put(mensaje)
-            logging.debug("Heartbeat recibido de %s:%d", *addr)
+            logging.debug("Heartbeat recibido de %s", addr)
         except json.JSONDecodeError:
-            logging.warning("Heartbeat inválido de %s:%d", *addr)
+            logging.warning("Heartbeat inválido de %s", addr)
 
 
 async def manejar_cliente_tcp(
@@ -29,7 +30,7 @@ async def manejar_cliente_tcp(
 ) -> None:
     # Maneja una conexión TCP: lee métricas línea a línea y las pone en la Queue
     addr = writer.get_extra_info("peername")
-    logging.info("Cliente conectado: %s:%d", *addr)
+    logging.info("Cliente conectado: %s", addr)
     try:
         while True:
             linea = await reader.readline()
@@ -41,34 +42,52 @@ async def manejar_cliente_tcp(
                 queue.put(metrica)
                 logging.debug("Métrica recibida de %s", metrica.get("nodo", addr))
             except json.JSONDecodeError:
-                logging.warning("Métrica inválida de %s:%d", *addr)
+                logging.warning("Métrica inválida de %s", addr)
     except asyncio.IncompleteReadError:
         pass
     finally:
-        logging.info("Cliente desconectado: %s:%d", *addr)
+        logging.info("Cliente desconectado: %s", addr)
         writer.close()
         await writer.wait_closed()
 
 
 async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None:
-    # Levanta el servidor TCP y UDP y los mantiene corriendo indefinidamente
+    # Levanta servidores TCP y UDP en IPv4 e IPv6
     servidor_tcp = await asyncio.start_server(
         lambda r, w: manejar_cliente_tcp(r, w, queue),
-        host=args.host,
+        host=["0.0.0.0", "::"],
         port=args.port_tcp,
     )
 
     loop = asyncio.get_running_loop()
-    transporte_udp, _ = await loop.create_datagram_endpoint(
-        lambda: HeartbeatProtocol(queue),
-        local_addr=(args.host, args.port_udp),
-    )
+    transportes_udp = []
 
-    logging.info("Servidor TCP escuchando en %s:%d", args.host, args.port_tcp)
-    logging.info("Servidor UDP escuchando en %s:%d", args.host, args.port_udp)
+    # UDP IPv4
+    transporte_udp_v4, _ = await loop.create_datagram_endpoint(
+        lambda: HeartbeatProtocol(queue),
+        local_addr=("0.0.0.0", args.port_udp),
+        family=socket.AF_INET,
+    )
+    transportes_udp.append(transporte_udp_v4)
+    logging.info("Servidor UDP IPv4 escuchando en 0.0.0.0:%d", args.port_udp)
+
+    # UDP IPv6 (opcional, puede no estar disponible en todos los sistemas)
+    try:
+        transporte_udp_v6, _ = await loop.create_datagram_endpoint(
+            lambda: HeartbeatProtocol(queue),
+            local_addr=("::", args.port_udp),
+            family=socket.AF_INET6,
+        )
+        transportes_udp.append(transporte_udp_v6)
+        logging.info("Servidor UDP IPv6 escuchando en [::]:%d", args.port_udp)
+    except OSError as e:
+        logging.warning("UDP IPv6 no disponible: %s", e)
+
+    logging.info("Servidor TCP escuchando en 0.0.0.0/[::] :%d", args.port_tcp)
 
     try:
         async with servidor_tcp:
             await servidor_tcp.serve_forever()
     finally:
-        transporte_udp.close()
+        for transporte in transportes_udp:
+            transporte.close()

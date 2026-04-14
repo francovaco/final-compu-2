@@ -33,24 +33,41 @@ def enviar_metricas(sock: socket.socket, metricas: dict) -> None:
     sock.sendall(datos)
 
 
-def enviar_heartbeat(sock_udp: socket.socket, nodo: str, servidor: str, port_udp: int) -> None:
+def enviar_heartbeat(sock_udp: socket.socket, nodo: str, udp_addr: tuple) -> None:
     # Envía un paquete UDP para indicar que el nodo sigue activo
     datos = json.dumps({"nodo": nodo, "tipo": "heartbeat"}).encode()
-    sock_udp.sendto(datos, (servidor, port_udp))
+    sock_udp.sendto(datos, udp_addr)
 
 
 def conectar_tcp(servidor: str, port_tcp: int) -> socket.socket:
-    # Crea y conecta un socket TCP al servidor
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((servidor, port_tcp))
-    logging.info("Conectado al servidor %s:%d", servidor, port_tcp)
-    return sock
+    # Prueba todas las familias disponibles (IPv4/IPv6) y conecta con la primera que funcione
+    infos = socket.getaddrinfo(servidor, port_tcp, type=socket.SOCK_STREAM)
+    ultimo_error = None
+    for family, _, _, _, sockaddr in infos:
+        try:
+            sock = socket.socket(family, socket.SOCK_STREAM)
+            sock.connect(sockaddr)
+            logging.info("Conectado al servidor %s (IPv%s)", sockaddr, "6" if family == socket.AF_INET6 else "4")
+            return sock
+        except OSError as e:
+            sock.close()
+            ultimo_error = e
+    raise OSError(f"No se pudo conectar a {servidor}:{port_tcp}: {ultimo_error}")
+
+
+def resolver_udp(servidor: str, port_udp: int) -> tuple[socket.socket, tuple]:
+    # Resuelve la dirección UDP y crea el socket con la familia correcta (IPv4/IPv6)
+    info = socket.getaddrinfo(servidor, port_udp, type=socket.SOCK_DGRAM)[0]
+    family, _, _, _, udp_addr = info
+    sock = socket.socket(family, socket.SOCK_DGRAM)
+    logging.debug("UDP resuelto a %s (IPv%s)", udp_addr, "6" if family == socket.AF_INET6 else "4")
+    return sock, udp_addr
 
 
 def correr(args: argparse.Namespace) -> None:
     # Loop principal: recolecta métricas, las envía por TCP y manda heartbeats por UDP
     nodo = socket.gethostname()
-    sock_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock_udp, udp_addr = resolver_udp(args.servidor, args.port_udp)
 
     ultimo_heartbeat = 0.0
     sock_tcp = None
@@ -81,7 +98,7 @@ def correr(args: argparse.Namespace) -> None:
         ahora = time.monotonic()
         if ahora - ultimo_heartbeat >= args.intervalo_heartbeat:
             try:
-                enviar_heartbeat(sock_udp, nodo, args.servidor, args.port_udp)
+                enviar_heartbeat(sock_udp, nodo, udp_addr)
                 logging.debug("Heartbeat enviado")
                 ultimo_heartbeat = ahora
             except OSError as e:

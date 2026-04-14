@@ -90,6 +90,7 @@ def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str) -> 
 
     return alertas
 
+    # TODO: encolar tarea Celery para envío de email
 
 # Detección de nodos caídos
 def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
@@ -108,6 +109,7 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
                 guardar_alerta(alerta, db_metricas)
             del heartbeats[nodo]
 
+    # TODO: encolar tarea Celery para envío de email cuando tasks.py esté listo 
 
 # Loop principal
 def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
