@@ -67,7 +67,7 @@ Temporary Items
 *.db
 *.sqlite
 *.sqlite3
-db/metricas.db
+db/
 .docker/
 celerybeat-schedule
 celerybeat.pid

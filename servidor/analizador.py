@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 import time
 from argparse import Namespace
@@ -9,7 +10,8 @@ from queue import Empty
 
 # Base de datos
 def inicializar_db(db_metricas: str) -> None:
-    # Crea las tablas si no existen
+    # Crea el directorio y las tablas si no existen
+    os.makedirs(os.path.dirname(db_metricas), exist_ok=True)
     conn = sqlite3.connect(db_metricas)
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS metricas (
