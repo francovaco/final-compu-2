@@ -1,5 +1,6 @@
 import logging
 import os
+import signal
 import sqlite3
 import time
 from argparse import Namespace
@@ -116,6 +117,7 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
 # Loop principal
 def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
     # Consume mensajes de la Queue y los procesa con un ProcessPoolExecutor
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # el proceso principal maneja el shutdown
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper()),
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -133,7 +135,7 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
 
     heartbeats: dict[str, float] = {}
 
-    with ProcessPoolExecutor(max_workers=args.workers) as executor:
+    with ProcessPoolExecutor(max_workers=args.workers, initializer=signal.signal, initargs=(signal.SIGINT, signal.SIG_IGN)) as executor:
         while True:
             try:
                 mensaje = queue.get(timeout=5)
