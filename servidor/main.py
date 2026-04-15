@@ -39,14 +39,15 @@ def main() -> None:
     # Cola compartida entre asyncio y el analizador
     queue = multiprocessing.Queue()
 
-    # Lock para serializar escrituras en metricas.db entre workers del ProcessPoolExecutor
-    db_lock = multiprocessing.Lock()
+    # Manager lock: serializable en macOS (spawn). Se crea en el proceso principal
+    # para que el Manager no sea hijo de un proceso daemon.
+    manager = multiprocessing.Manager()
+    db_lock = manager.Lock()
 
-    # Lanzar el analizador como proceso hijo
+    # Lanzar el analizador como proceso hijo (sin daemon para que pueda crear workers)
     proceso_analizador = multiprocessing.Process(
         target=correr_analizador,
         args=(queue, db_lock, args),
-        daemon=True,
     )
     proceso_analizador.start()
     logging.info("Proceso analizador iniciado (PID %d)", proceso_analizador.pid)
@@ -59,6 +60,7 @@ def main() -> None:
     finally:
         proceso_analizador.terminate()
         proceso_analizador.join()
+        manager.shutdown()
         logging.info("Proceso analizador terminado")
 
 

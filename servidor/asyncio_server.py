@@ -18,7 +18,9 @@ class HeartbeatProtocol(asyncio.DatagramProtocol):
             mensaje = json.loads(data.decode())
             mensaje["tipo"] = "heartbeat"
             self.queue.put(mensaje)
-            logging.debug("Heartbeat recibido de %s", addr)
+            ip, *_ = addr
+            version = "IPv6" if ":" in ip else "IPv4"
+            logging.debug("Heartbeat recibido de %s (%s)", mensaje.get("nodo", ip), version)
         except json.JSONDecodeError:
             logging.warning("Heartbeat inválido de %s", addr)
 
@@ -30,7 +32,9 @@ async def manejar_cliente_tcp(
 ) -> None:
     # Maneja una conexión TCP: lee métricas línea a línea y las pone en la Queue
     addr = writer.get_extra_info("peername")
-    logging.info("Cliente conectado: %s", addr)
+    ip, *_ = addr
+    version = "IPv6" if ":" in ip else "IPv4"
+    nodo = None
     try:
         while True:
             linea = await reader.readline()
@@ -40,13 +44,16 @@ async def manejar_cliente_tcp(
                 metrica = json.loads(linea.decode())
                 metrica["tipo"] = "metrica"
                 queue.put(metrica)
-                logging.debug("Métrica recibida de %s", metrica.get("nodo", addr))
+                if nodo is None:
+                    nodo = metrica.get("nodo", ip)
+                    logging.info("Cliente conectado: %s (%s)", nodo, version)
+                logging.debug("Métrica recibida de %s (%s)", nodo, version)
             except json.JSONDecodeError:
                 logging.warning("Métrica inválida de %s", addr)
     except asyncio.IncompleteReadError:
         pass
     finally:
-        logging.info("Cliente desconectado: %s", addr)
+        logging.info("Cliente desconectado: %s", nodo or ip)
         writer.close()
         await writer.wait_closed()
 

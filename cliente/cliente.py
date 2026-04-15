@@ -19,10 +19,10 @@ def recolectar_metricas() -> dict:
     # Genera métricas aleatorias simuladas
     return {
         "nodo": socket.gethostname(),
-        "cpu": round(random.uniform(10, 95), 1),
-        "ram": round(random.uniform(20, 90), 1),
-        "disco": round(random.uniform(30, 85), 1),
-        "temperatura": round(random.uniform(40, 95), 1),
+        "cpu": round(random.uniform(10, 100), 1),
+        "ram": round(random.uniform(20, 100), 1),
+        "disco": round(random.uniform(30, 100), 1),
+        "temperatura": round(random.uniform(40, 105), 1),
         "timestamp": datetime.now().isoformat(),
     }
 
