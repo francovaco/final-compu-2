@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import logging
 import multiprocessing
-
 from servidor.analizador import correr_analizador
 from servidor.asyncio_server import correr_servidor
 
@@ -38,9 +37,6 @@ def main() -> None:
 
     # Cola compartida entre asyncio y el analizador
     queue = multiprocessing.Queue()
-
-    # Manager lock: serializable en macOS (spawn). Se crea en el proceso principal
-    # para que el Manager no sea hijo de un proceso daemon.
     manager = multiprocessing.Manager()
     db_lock = manager.Lock()
 

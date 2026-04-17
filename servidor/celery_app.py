@@ -1,11 +1,10 @@
 import os
-
 from celery import Celery
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Broker Redis — se puede sobreescribir con la variable de entorno CELERY_BROKER
+# Broker Redis
 broker = os.getenv("CELERY_BROKER", "redis://redis:6379/0")
 
 app = Celery("monitoreo", broker=broker, include=["servidor.tasks"])
