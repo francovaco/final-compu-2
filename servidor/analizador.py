@@ -7,6 +7,7 @@ from argparse import Namespace
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Queue, Lock
 from queue import Empty
+from servidor.tasks import enviar_alerta_email, enviar_alerta_nodo_caido, limpiar_metricas
 
 
 # Base de datos
@@ -90,10 +91,9 @@ def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str) -> 
         nivel = logging.CRITICAL if alerta["valor"] > 90 else logging.WARNING
         logging.log(nivel, "ALERTA [%s] nodo=%s valor=%.1f",
                     alerta["tipo"].upper(), alerta["nodo"], alerta["valor"])
+        enviar_alerta_email.delay(alerta["nodo"], alerta["tipo"], alerta["valor"], alerta["timestamp"])
 
     return alertas
-
-    # TODO: encolar tarea Celery para envío de email
 
 # Detección de nodos caídos
 def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
@@ -111,8 +111,7 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
             with db_lock:
                 guardar_alerta(alerta, db_metricas)
             del heartbeats[nodo]
-
-    # TODO: encolar tarea Celery para envío de email cuando tasks.py esté listo 
+            enviar_alerta_nodo_caido.delay(nodo, alerta["timestamp"])
 
 # Loop principal
 def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
@@ -134,6 +133,7 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
     }
 
     heartbeats: dict[str, float] = {}
+    ultimo_limpieza = time.monotonic()
 
     with ProcessPoolExecutor(max_workers=args.workers, initializer=signal.signal, initargs=(signal.SIGINT, signal.SIG_IGN)) as executor:
         while True:
@@ -152,3 +152,8 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
                 pass
 
             verificar_nodos_caidos(heartbeats, args.heartbeat_timeout, db_lock, args.db_metricas)
+
+            if time.monotonic() - ultimo_limpieza >= args.db_retencion * 3600:
+                limpiar_metricas.delay(args.db_metricas, int(args.db_retencion))
+                ultimo_limpieza = time.monotonic()
+                logging.info("Tarea de limpieza de métricas encolada")

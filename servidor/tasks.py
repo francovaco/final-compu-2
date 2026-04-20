@@ -11,8 +11,8 @@ load_dotenv()
 
 # Email
 def _enviar_email(asunto: str, cuerpo: str) -> None:
-    """Envía un email usando las variables de entorno configuradas.
-    Si EMAIL_DESTINATARIO no está configurado, no hace nada."""
+    # Envía un email usando las variables de entorno configuradas.
+    # Si EMAIL_DESTINATARIO no está configurado, no hace nada.
     remitente    = os.getenv("EMAIL_REMITENTE")
     password     = os.getenv("EMAIL_PASSWORD")
     destinatario = os.getenv("EMAIL_DESTINATARIO")
@@ -36,7 +36,7 @@ def _enviar_email(asunto: str, cuerpo: str) -> None:
 
 @app.task
 def enviar_alerta_email(nodo: str, tipo: str, valor: float, timestamp: str) -> None:
-    """Envía un email de alerta cuando una métrica supera su umbral."""
+    # Envía un email de alerta cuando una métrica supera su umbral.
     asunto = f"[ALERTA] {tipo.upper()} en {nodo}"
     cuerpo = (
         f"Se detectó una alerta en el nodo {nodo}.\n\n"
@@ -53,7 +53,7 @@ def enviar_alerta_email(nodo: str, tipo: str, valor: float, timestamp: str) -> N
 
 @app.task
 def enviar_alerta_nodo_caido(nodo: str, timestamp: str) -> None:
-    """Envía un email cuando un nodo deja de enviar heartbeats."""
+    # Envía un email cuando un nodo deja de enviar heartbeats.
     asunto = f"[ALERTA] Nodo caído: {nodo}"
     cuerpo = (
         f"El nodo {nodo} dejó de responder.\n\n"
@@ -69,7 +69,7 @@ def enviar_alerta_nodo_caido(nodo: str, timestamp: str) -> None:
 # Reportes históricos
 @app.task
 def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 24) -> None:
-    """Lee métricas de las últimas `horas` horas para `nodo` y escribe un reporte en reportes.db."""
+    # Lee métricas de las últimas `horas` horas para `nodo` y escribe un reporte en reportes.db.
     periodo_fin   = datetime.now()
     periodo_inicio = periodo_fin - timedelta(hours=horas)
 
@@ -146,7 +146,7 @@ def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 
 # Limpieza de métricas antiguas
 @app.task
 def limpiar_metricas(db_metricas: str, retencion_horas: int) -> None:
-    """Borra métricas más antiguas que `retencion_horas` horas de metricas.db."""
+    # Borra métricas más antiguas que `retencion_horas` horas de metricas.db.
     limite = datetime.now() - timedelta(hours=retencion_horas)
     conn = sqlite3.connect(db_metricas)
     cursor = conn.execute(

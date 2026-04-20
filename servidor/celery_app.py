@@ -4,13 +4,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Broker Redis
 broker = os.getenv("CELERY_BROKER", "redis://redis:6379/0")
 
 app = Celery("monitoreo", broker=broker, include=["servidor.tasks"])
 
 app.conf.update(
-    result_backend=None,   # no necesitamos guardar resultados de tareas
+    result_backend=None,
     task_serializer="json",
     accept_content=["json"],
 )

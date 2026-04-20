@@ -78,7 +78,7 @@ async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None
     transportes_udp.append(transporte_udp_v4)
     logging.info("Servidor UDP IPv4 escuchando en 0.0.0.0:%d", args.port_udp)
 
-    # UDP IPv6 (opcional, puede no estar disponible en todos los sistemas)
+    # UDP IPv6
     try:
         transporte_udp_v6, _ = await loop.create_datagram_endpoint(
             lambda: HeartbeatProtocol(queue),
