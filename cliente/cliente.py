@@ -72,39 +72,50 @@ def correr(args: argparse.Namespace) -> None:
     ultimo_heartbeat = 0.0
     sock_tcp = None
 
-    while True:
-        # Conectar o reconectar TCP
-        if sock_tcp is None:
+    try:
+        while True:
+            # Conectar o reconectar TCP
+            if sock_tcp is None:
+                try:
+                    sock_tcp = conectar_tcp(args.servidor, args.port_tcp)
+                except OSError as e:
+                    logging.warning("No se pudo conectar al servidor: %s. Reintentando en %.0fs...", e, args.intervalo)
+                    time.sleep(args.intervalo)
+                    continue
+
+            # Recolectar y enviar métricas por TCP
             try:
-                sock_tcp = conectar_tcp(args.servidor, args.port_tcp)
+                metricas = recolectar_metricas()
+                enviar_metricas(sock_tcp, metricas)
+                logging.info("Métricas enviadas: CPU=%.1f%% RAM=%.1f%% Disco=%.1f%%",
+                             metricas["cpu"], metricas["ram"], metricas["disco"])
             except OSError as e:
-                logging.warning("No se pudo conectar al servidor: %s. Reintentando en %.0fs...", e, args.intervalo)
-                time.sleep(args.intervalo)
+                logging.warning("Error enviando métricas: %s. Reconectando...", e)
+                try:
+                    sock_tcp.close()
+                except OSError:
+                    pass
+                sock_tcp = None
                 continue
 
-        # Recolectar y enviar métricas por TCP
-        try:
-            metricas = recolectar_metricas()
-            enviar_metricas(sock_tcp, metricas)
-            logging.info("Métricas enviadas: CPU=%.1f%% RAM=%.1f%% Disco=%.1f%%",
-                         metricas["cpu"], metricas["ram"], metricas["disco"])
-        except OSError as e:
-            logging.warning("Error enviando métricas: %s. Reconectando...", e)
-            sock_tcp.close()
-            sock_tcp = None
-            continue
+            # Enviar heartbeat por UDP si corresponde
+            ahora = time.monotonic()
+            if ahora - ultimo_heartbeat >= args.intervalo_heartbeat:
+                try:
+                    enviar_heartbeat(sock_udp, nodo, udp_addr)
+                    logging.debug("Heartbeat enviado")
+                    ultimo_heartbeat = ahora
+                except OSError as e:
+                    logging.warning("Error enviando heartbeat: %s", e)
 
-        # Enviar heartbeat por UDP si corresponde
-        ahora = time.monotonic()
-        if ahora - ultimo_heartbeat >= args.intervalo_heartbeat:
+            time.sleep(args.intervalo)
+    finally:
+        sock_udp.close()
+        if sock_tcp:
             try:
-                enviar_heartbeat(sock_udp, nodo, udp_addr)
-                logging.debug("Heartbeat enviado")
-                ultimo_heartbeat = ahora
-            except OSError as e:
-                logging.warning("Error enviando heartbeat: %s", e)
-
-        time.sleep(args.intervalo)
+                sock_tcp.close()
+            except OSError:
+                pass
 
 
 def main() -> None:

@@ -28,7 +28,7 @@ def main() -> None:
     parser.add_argument("--db-metricas", default="db/metricas.db", help="Ruta del SQLite de métricas")
     parser.add_argument("--db-reportes", default="db/reportes.db", help="Ruta del SQLite de reportes")
     parser.add_argument("--db-retencion", type=float, default=72, help="Horas máximas de retención de métricas")
-    parser.add_argument("--celery-broker", default="redis://redis:6379/0", help="URL del broker Redis para Celery")
+    parser.add_argument("--reporte-intervalo", type=float, default=24, help="Horas entre generación de reportes históricos")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 

@@ -7,7 +7,7 @@ from argparse import Namespace
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Queue, Lock
 from queue import Empty
-from servidor.tasks import enviar_alerta_email, enviar_alerta_nodo_caido, limpiar_metricas
+from servidor.tasks import enviar_alerta_email, enviar_alerta_nodo_caido, limpiar_metricas, generar_reporte
 
 
 # Base de datos
@@ -134,6 +134,7 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
 
     heartbeats: dict[str, float] = {}
     ultimo_limpieza = time.monotonic()
+    ultimo_reporte = time.monotonic()
 
     with ProcessPoolExecutor(max_workers=args.workers, initializer=signal.signal, initargs=(signal.SIGINT, signal.SIG_IGN)) as executor:
         while True:
@@ -157,3 +158,9 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
                 limpiar_metricas.delay(args.db_metricas, int(args.db_retencion))
                 ultimo_limpieza = time.monotonic()
                 logging.info("Tarea de limpieza de métricas encolada")
+
+            if time.monotonic() - ultimo_reporte >= args.reporte_intervalo * 3600:
+                for nodo in list(heartbeats):
+                    generar_reporte.delay(args.db_metricas, args.db_reportes, nodo, int(args.reporte_intervalo))
+                    logging.info("Tarea de reporte encolada para nodo=%s", nodo)
+                ultimo_reporte = time.monotonic()

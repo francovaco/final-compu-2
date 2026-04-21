@@ -79,7 +79,7 @@ async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None
     ipv4, ipv6 = _detectar_familias()
     hosts_tcp = []
     if ipv4:
-        hosts_tcp.append("0.0.0.0")
+        hosts_tcp.append(args.host)
     if ipv6:
         hosts_tcp.append("::")
 
@@ -97,11 +97,11 @@ async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None
         try:
             transporte_udp_v4, _ = await loop.create_datagram_endpoint(
                 lambda: HeartbeatProtocol(queue),
-                local_addr=("0.0.0.0", args.port_udp),
+                local_addr=(args.host, args.port_udp),
                 family=socket.AF_INET,
             )
             transportes_udp.append(transporte_udp_v4)
-            logging.info("Servidor UDP IPv4 escuchando en 0.0.0.0:%d", args.port_udp)
+            logging.info("Servidor UDP IPv4 escuchando en %s:%d", args.host, args.port_udp)
         except OSError as e:
             logging.warning("UDP IPv4 no disponible: %s", e)
 
