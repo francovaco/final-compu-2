@@ -106,7 +106,7 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
                 "nodo": nodo,
                 "tipo": "nodo_caido",
                 "valor": 0.0,
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
             }
             with db_lock:
                 guardar_alerta(alerta, db_metricas)

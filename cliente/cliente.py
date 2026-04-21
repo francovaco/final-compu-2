@@ -4,7 +4,7 @@ import logging
 import random
 import socket
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def configurar_logging(nivel: str) -> None:
@@ -23,7 +23,7 @@ def recolectar_metricas() -> dict:
         "ram": round(random.uniform(20, 85), 1),
         "disco": round(random.uniform(30, 95), 1),
         "temperatura": round(random.uniform(40, 90), 1),
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

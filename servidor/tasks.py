@@ -2,7 +2,7 @@ import logging
 import os
 import smtplib
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from servidor.celery_app import app
@@ -70,7 +70,7 @@ def enviar_alerta_nodo_caido(nodo: str, timestamp: str) -> None:
 @app.task
 def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 24) -> None:
     # Lee métricas de las últimas `horas` horas para `nodo` y escribe un reporte en reportes.db.
-    periodo_fin   = datetime.now()
+    periodo_fin   = datetime.now(timezone.utc)
     periodo_inicio = periodo_fin - timedelta(hours=horas)
 
     # Leer métricas del periodo
@@ -134,7 +134,7 @@ def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 
             ram_prom,   ram_max,   ram_min,
             disco_prom, disco_max, disco_min,
             temp_prom,  temp_max,  temp_min,
-            datetime.now().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
         ),
     )
     conn_reportes.commit()
@@ -147,7 +147,7 @@ def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 
 @app.task
 def limpiar_metricas(db_metricas: str, retencion_horas: int) -> None:
     # Borra métricas más antiguas que `retencion_horas` horas de metricas.db.
-    limite = datetime.now() - timedelta(hours=retencion_horas)
+    limite = datetime.now(timezone.utc) - timedelta(hours=retencion_horas)
     conn = sqlite3.connect(db_metricas)
     cursor = conn.execute(
         "DELETE FROM metricas WHERE timestamp < ?",

@@ -58,39 +58,64 @@ async def manejar_cliente_tcp(
         await writer.wait_closed()
 
 
+def _detectar_familias() -> tuple[bool, bool]:
+    # Detecta qué familias IP soporta el SO probando crear un socket de cada tipo
+    ipv4 = False
+    ipv6 = False
+    for family in (socket.AF_INET, socket.AF_INET6):
+        try:
+            s = socket.socket(family, socket.SOCK_STREAM)
+            s.close()
+            if family == socket.AF_INET:
+                ipv4 = True
+            else:
+                ipv6 = True
+        except OSError:
+            pass
+    return ipv4, ipv6
+
+
 async def correr_servidor(queue: multiprocessing.Queue, args: Namespace) -> None:
-    # Levanta servidores TCP y UDP en IPv4 e IPv6
+    ipv4, ipv6 = _detectar_familias()
+    hosts_tcp = []
+    if ipv4:
+        hosts_tcp.append("0.0.0.0")
+    if ipv6:
+        hosts_tcp.append("::")
+
     servidor_tcp = await asyncio.start_server(
         lambda r, w: manejar_cliente_tcp(r, w, queue),
-        host=["0.0.0.0", "::"],
+        host=hosts_tcp,
         port=args.port_tcp,
     )
+    logging.info("Servidor TCP escuchando en %s:%d", "/".join(hosts_tcp), args.port_tcp)
 
     loop = asyncio.get_running_loop()
     transportes_udp = []
 
-    # UDP IPv4
-    transporte_udp_v4, _ = await loop.create_datagram_endpoint(
-        lambda: HeartbeatProtocol(queue),
-        local_addr=("0.0.0.0", args.port_udp),
-        family=socket.AF_INET,
-    )
-    transportes_udp.append(transporte_udp_v4)
-    logging.info("Servidor UDP IPv4 escuchando en 0.0.0.0:%d", args.port_udp)
+    if ipv4:
+        try:
+            transporte_udp_v4, _ = await loop.create_datagram_endpoint(
+                lambda: HeartbeatProtocol(queue),
+                local_addr=("0.0.0.0", args.port_udp),
+                family=socket.AF_INET,
+            )
+            transportes_udp.append(transporte_udp_v4)
+            logging.info("Servidor UDP IPv4 escuchando en 0.0.0.0:%d", args.port_udp)
+        except OSError as e:
+            logging.warning("UDP IPv4 no disponible: %s", e)
 
-    # UDP IPv6
-    try:
-        transporte_udp_v6, _ = await loop.create_datagram_endpoint(
-            lambda: HeartbeatProtocol(queue),
-            local_addr=("::", args.port_udp),
-            family=socket.AF_INET6,
-        )
-        transportes_udp.append(transporte_udp_v6)
-        logging.info("Servidor UDP IPv6 escuchando en [::]:%d", args.port_udp)
-    except OSError as e:
-        logging.warning("UDP IPv6 no disponible: %s", e)
-
-    logging.info("Servidor TCP escuchando en 0.0.0.0/[::] :%d", args.port_tcp)
+    if ipv6:
+        try:
+            transporte_udp_v6, _ = await loop.create_datagram_endpoint(
+                lambda: HeartbeatProtocol(queue),
+                local_addr=("::", args.port_udp),
+                family=socket.AF_INET6,
+            )
+            transportes_udp.append(transporte_udp_v6)
+            logging.info("Servidor UDP IPv6 escuchando en [::]:%d", args.port_udp)
+        except OSError as e:
+            logging.warning("UDP IPv6 no disponible: %s", e)
 
     try:
         async with servidor_tcp:
