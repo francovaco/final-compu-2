@@ -24,7 +24,7 @@ def _enviar_email(asunto: str, cuerpo: str) -> None:
 
     msg = MIMEText(cuerpo)
     msg["Subject"] = asunto
-    msg["From"]    = remitente
+    msg["From"]    = f"Server Monitor <{remitente}>"
     msg["To"]      = destinatario
 
     with smtplib.SMTP(smtp_host, smtp_port) as servidor:
@@ -32,6 +32,14 @@ def _enviar_email(asunto: str, cuerpo: str) -> None:
         servidor.starttls()
         servidor.login(remitente, password)
         servidor.sendmail(remitente, [destinatario], msg.as_string())
+
+
+def _formatear_timestamp(timestamp: str) -> str:
+    try:
+        dt = datetime.fromisoformat(timestamp)
+        return dt.strftime("%d/%m/%Y %H:%M:%S UTC")
+    except ValueError:
+        return timestamp
 
 
 @app.task
@@ -42,7 +50,7 @@ def enviar_alerta_email(nodo: str, tipo: str, valor: float, timestamp: str) -> N
         f"Se detectó una alerta en el nodo {nodo}.\n\n"
         f"Tipo:      {tipo.upper()}\n"
         f"Valor:     {valor:.1f}\n"
-        f"Timestamp: {timestamp}\n"
+        f"Timestamp: {_formatear_timestamp(timestamp)}\n"
     )
     try:
         _enviar_email(asunto, cuerpo)
@@ -57,7 +65,7 @@ def enviar_alerta_nodo_caido(nodo: str, timestamp: str) -> None:
     asunto = f"[ALERTA] Nodo caído: {nodo}"
     cuerpo = (
         f"El nodo {nodo} dejó de responder.\n\n"
-        f"Último heartbeat registrado antes de: {timestamp}\n"
+        f"Último heartbeat registrado antes de: {_formatear_timestamp(timestamp)}\n"
     )
     try:
         _enviar_email(asunto, cuerpo)
@@ -102,6 +110,7 @@ def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 
     temp_prom,  temp_max,  temp_min  = stats([f["temperatura"] for f in filas])
 
     # Inicializar reportes.db si no existe
+    os.makedirs(os.path.dirname(db_reportes), exist_ok=True)
     conn_reportes = sqlite3.connect(db_reportes)
     conn_reportes.execute("""
         CREATE TABLE IF NOT EXISTS reportes (
@@ -148,6 +157,7 @@ def generar_reporte(db_metricas: str, db_reportes: str, nodo: str, horas: int = 
 def limpiar_metricas(db_metricas: str, retencion_horas: int) -> None:
     # Borra métricas más antiguas que `retencion_horas` horas de metricas.db.
     limite = datetime.now(timezone.utc) - timedelta(hours=retencion_horas)
+    os.makedirs(os.path.dirname(db_metricas), exist_ok=True)
     conn = sqlite3.connect(db_metricas)
     cursor = conn.execute(
         "DELETE FROM metricas WHERE timestamp < ?",

@@ -1,0 +1,45 @@
+services:
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+
+  servidor:
+    build: .
+    command: python -m servidor.main
+    depends_on:
+      - redis
+    ports:
+      - "9000:9000"
+      - "9001:9001/udp"
+    volumes:
+      - sqlite_data:/app/db
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    restart: unless-stopped
+
+  cliente:
+    build: .
+    command: python -m cliente.cliente --servidor servidor
+    depends_on:
+      - servidor
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  celery:
+    build: .
+    command: celery -A servidor.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+    volumes:
+      - sqlite_data:/app/db
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
