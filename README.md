@@ -33,7 +33,7 @@ docker compose down
 
 ## Parámetros del servidor
 
-Se pueden sobreescribir en el `docker-compose.yml` bajo el campo `command`.
+Se pueden sobreescribir en el `docker-compose.yml` bajo el campo `command`. Para ver todos los parámetros disponibles: `python -m servidor.main --help`
 
 | Parámetro | Default | Descripción |
 |---|---|---|
@@ -53,6 +53,8 @@ Se pueden sobreescribir en el `docker-compose.yml` bajo el campo `command`.
 | `--log-level` | `INFO` | Nivel de logging (DEBUG, INFO, WARNING, ERROR) |
 
 ## Parámetros del cliente
+
+Para ver todos los parámetros disponibles: `python -m cliente.cliente --help`
 
 | Parámetro | Default | Descripción |
 |---|---|---|
