@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="sZtfTc4VVMiQHmTICgia" name="Página-1">
-        <mxGraphModel dx="990" dy="831" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="1006" dy="535" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -59,7 +59,7 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="16" value="multiprocessing.Queue" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-                    <mxGeometry x="351.5" y="136" width="141" height="26" as="geometry"/>
+                    <mxGeometry x="349" y="136" width="141" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="19" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;SQLite&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="506" y="308" width="125" height="60" as="geometry"/>
@@ -73,8 +73,8 @@
                 <mxCell id="23" value="Servidor central" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#00FF00;fontSize=27;" parent="1" vertex="1">
                     <mxGeometry x="406" y="66" width="207" height="44" as="geometry"/>
                 </mxCell>
-                <mxCell id="24" value="Analizar métricas y alerta" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-                    <mxGeometry x="492.5" y="126" width="153" height="26" as="geometry"/>
+                <mxCell id="24" value="Analizar métricas y alerta&lt;div&gt;(multiprocess)&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="492" y="111" width="153" height="41" as="geometry"/>
                 </mxCell>
                 <mxCell id="25" value="TCP" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="250.5" y="200" width="42" height="26" as="geometry"/>
@@ -88,8 +88,8 @@
                 <mxCell id="28" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Celery&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="626.5" y="219" width="125" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="29" value="Reportes / Historial" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-                    <mxGeometry x="629" y="196" width="120" height="26" as="geometry"/>
+                <mxCell id="29" value="Reportes / Mails" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="637" y="196" width="105" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="30" value="Escribe" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="514.5" y="253" width="58" height="26" as="geometry"/>
