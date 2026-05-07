@@ -19,7 +19,7 @@ Requiere Docker y Docker Compose. Antes de levantar, completar el archivo `.env`
 
 ```bash
 # Levantar todo con N clientes simulados
-docker compose up --build --scale cliente=N 
+docker compose up --scale cliente=N 
 
 # Ver logs del servidor
 docker compose logs -f servidor
