@@ -14,7 +14,7 @@ from servidor.tasks import enviar_alerta_email, enviar_alerta_nodo_caido, limpia
 def inicializar_db(db_metricas: str) -> None:
     # Crea el directorio y las tablas si no existen
     os.makedirs(os.path.dirname(db_metricas), exist_ok=True)
-    conn = sqlite3.connect(db_metricas)
+    conn = sqlite3.connect(db_metricas, timeout=30)
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS metricas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +39,7 @@ def inicializar_db(db_metricas: str) -> None:
 
 def guardar_metrica(metrica: dict, db_metricas: str) -> None:
     # Inserta una métrica en la base de datos
-    conn = sqlite3.connect(db_metricas)
+    conn = sqlite3.connect(db_metricas, timeout=30)
     conn.execute(
         "INSERT INTO metricas (nodo, cpu, ram, disco, temperatura, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
         (metrica["nodo"], metrica["cpu"], metrica["ram"],
@@ -51,7 +51,7 @@ def guardar_metrica(metrica: dict, db_metricas: str) -> None:
 
 def guardar_alerta(alerta: dict, db_metricas: str) -> None:
     # Inserta una alerta en la base de datos
-    conn = sqlite3.connect(db_metricas)
+    conn = sqlite3.connect(db_metricas, timeout=30)
     conn.execute(
         "INSERT INTO alertas (nodo, tipo, valor, timestamp) VALUES (?, ?, ?, ?)",
         (alerta["nodo"], alerta["tipo"], alerta["valor"], alerta["timestamp"]),
@@ -78,22 +78,38 @@ def evaluar_umbrales(metrica: dict, umbrales: dict) -> list[dict]:
     return alertas
 
 
-def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str) -> list[dict]:
-    # Analiza una métrica: evalúa umbrales, guarda en DB y loguea alertas
+def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str, alertas_email: list) -> list[dict]:
+    # Analiza una métrica: evalúa umbrales, guarda en DB, loguea y despacha emails aprobados por cooldown
     alertas = evaluar_umbrales(metrica, umbrales)
 
-    with db_lock:
-        guardar_metrica(metrica, db_metricas)
-        for alerta in alertas:
-            guardar_alerta(alerta, db_metricas)
+    try:
+        with db_lock:
+            guardar_metrica(metrica, db_metricas)
+            for alerta in alertas:
+                guardar_alerta(alerta, db_metricas)
+    except Exception as exc:
+        logging.error("Error guardando en DB: %s", exc)
+        return alertas
 
     for alerta in alertas:
         nivel = logging.CRITICAL if alerta["valor"] > 90 else logging.WARNING
         logging.log(nivel, "ALERTA [%s] nodo=%s valor=%.1f",
                     alerta["tipo"].upper(), alerta["nodo"], alerta["valor"])
-        enviar_alerta_email.delay(alerta["nodo"], alerta["tipo"], alerta["valor"], alerta["timestamp"])
+
+    for alerta in alertas_email:
+        try:
+            enviar_alerta_email.delay(alerta["nodo"], alerta["tipo"], alerta["valor"], alerta["timestamp"])
+        except Exception as exc:
+            logging.error("Error al encolar email de alerta: %s", exc)
 
     return alertas
+
+
+def _log_excepcion_worker(fut) -> None:
+    exc = fut.exception()
+    if exc:
+        logging.error("Excepción en worker del analizador: %s", exc)
+
 
 # Detección de nodos caídos
 def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
@@ -112,6 +128,7 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
                 guardar_alerta(alerta, db_metricas)
             del heartbeats[nodo]
             enviar_alerta_nodo_caido.delay(nodo, alerta["timestamp"])
+
 
 # Loop principal
 def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
@@ -133,6 +150,7 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
     }
 
     heartbeats: dict[str, float] = {}
+    ultimo_email: dict[tuple, float] = {}
     ultimo_limpieza = time.monotonic()
     ultimo_reporte = time.monotonic()
 
@@ -147,7 +165,19 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
                     logging.debug("Heartbeat de %s", mensaje["nodo"])
 
                 elif tipo == "metrica":
-                    executor.submit(analizar, mensaje, db_lock, umbrales, args.db_metricas)
+                    # Cooldown evaluado con dict local. Solo se pasan al worker
+                    # las alertas que superaron el cooldown para que las envíe por email.
+                    alertas = evaluar_umbrales(mensaje, umbrales)
+                    ahora = time.monotonic()
+                    alertas_email = []
+                    for alerta in alertas:
+                        clave = (alerta["nodo"], alerta["tipo"])
+                        if ahora - ultimo_email.get(clave, 0) >= args.alert_cooldown:
+                            alertas_email.append(alerta)
+                            ultimo_email[clave] = ahora
+
+                    fut = executor.submit(analizar, mensaje, db_lock, umbrales, args.db_metricas, alertas_email)
+                    fut.add_done_callback(_log_excepcion_worker)
 
             except Empty:
                 pass
