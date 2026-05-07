@@ -168,7 +168,7 @@ def correr_analizador(queue: Queue, args: Namespace) -> None:
                     alertas_email = []
                     for alerta in alertas:
                         clave = (alerta["nodo"], alerta["tipo"])
-                        if ahora - ultimo_email.get(clave, 0) >= args.alert_cooldown:
+                        if clave not in ultimo_email or ahora - ultimo_email[clave] >= args.alert_cooldown:
                             alertas_email.append(alerta)
                             ultimo_email[clave] = ahora
 
