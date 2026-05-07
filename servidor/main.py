@@ -38,13 +38,11 @@ def main() -> None:
 
     # Cola compartida entre asyncio y el analizador
     queue = multiprocessing.Queue()
-    manager = multiprocessing.Manager()
-    db_lock = manager.Lock()
 
     # Lanzar el analizador como proceso hijo (sin daemon para que pueda crear workers)
     proceso_analizador = multiprocessing.Process(
         target=correr_analizador,
-        args=(queue, db_lock, args),
+        args=(queue, args),
     )
     proceso_analizador.start()
     logging.info("Proceso analizador iniciado (PID %d)", proceso_analizador.pid)
@@ -57,7 +55,6 @@ def main() -> None:
     finally:
         proceso_analizador.terminate()
         proceso_analizador.join()
-        manager.shutdown()
         logging.info("Proceso analizador terminado")
 
 

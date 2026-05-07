@@ -5,7 +5,7 @@ import sqlite3
 import time
 from argparse import Namespace
 from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Queue, Lock
+from multiprocessing import Queue
 from queue import Empty
 from servidor.tasks import enviar_alerta_email, enviar_alerta_nodo_caido, limpiar_metricas, generar_reporte
 
@@ -78,18 +78,16 @@ def evaluar_umbrales(metrica: dict, umbrales: dict) -> list[dict]:
     return alertas
 
 
-def analizar(metrica: dict, db_lock: Lock, umbrales: dict, db_metricas: str, alertas_email: list) -> list[dict]:
+def analizar(metrica: dict, umbrales: dict, db_metricas: str, alertas_email: list) -> list[dict]:
     # Analiza una métrica: evalúa umbrales, guarda en DB, loguea y despacha emails aprobados por cooldown
     alertas = evaluar_umbrales(metrica, umbrales)
 
     try:
-        with db_lock:
-            guardar_metrica(metrica, db_metricas)
-            for alerta in alertas:
-                guardar_alerta(alerta, db_metricas)
+        guardar_metrica(metrica, db_metricas)
+        for alerta in alertas:
+            guardar_alerta(alerta, db_metricas)
     except Exception as exc:
         logging.error("Error guardando en DB: %s", exc)
-        return alertas
 
     for alerta in alertas:
         nivel = logging.CRITICAL if alerta["valor"] > 90 else logging.WARNING
@@ -112,7 +110,7 @@ def _log_excepcion_worker(fut) -> None:
 
 
 # Detección de nodos caídos
-def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_metricas: str) -> None:
+def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_metricas: str) -> None:
     # Detecta nodos que no enviaron heartbeat en más de `timeout` segundos
     ahora = time.monotonic()
     for nodo in list(heartbeats):
@@ -124,14 +122,13 @@ def verificar_nodos_caidos(heartbeats: dict, timeout: float, db_lock: Lock, db_m
                 "valor": 0.0,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
             }
-            with db_lock:
-                guardar_alerta(alerta, db_metricas)
+            guardar_alerta(alerta, db_metricas)
             del heartbeats[nodo]
             enviar_alerta_nodo_caido.delay(nodo, alerta["timestamp"])
 
 
 # Loop principal
-def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
+def correr_analizador(queue: Queue, args: Namespace) -> None:
     # Consume mensajes de la Queue y los procesa con un ProcessPoolExecutor
     signal.signal(signal.SIGINT, signal.SIG_IGN)  # el proceso principal maneja el shutdown
     logging.basicConfig(
@@ -175,13 +172,13 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
                             alertas_email.append(alerta)
                             ultimo_email[clave] = ahora
 
-                    fut = executor.submit(analizar, mensaje, db_lock, umbrales, args.db_metricas, alertas_email)
+                    fut = executor.submit(analizar, mensaje, umbrales, args.db_metricas, alertas_email)
                     fut.add_done_callback(_log_excepcion_worker)
 
             except Empty:
                 pass
 
-            verificar_nodos_caidos(heartbeats, args.heartbeat_timeout, db_lock, args.db_metricas)
+            verificar_nodos_caidos(heartbeats, args.heartbeat_timeout, args.db_metricas)
 
             if time.monotonic() - ultimo_limpieza >= args.db_retencion * 3600:
                 limpiar_metricas.delay(args.db_metricas, int(args.db_retencion))
