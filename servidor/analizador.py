@@ -165,8 +165,7 @@ def correr_analizador(queue: Queue, db_lock: Lock, args: Namespace) -> None:
                     logging.debug("Heartbeat de %s", mensaje["nodo"])
 
                 elif tipo == "metrica":
-                    # Cooldown evaluado con dict local. Solo se pasan al worker
-                    # las alertas que superaron el cooldown para que las envíe por email.
+                    # Cooldown
                     alertas = evaluar_umbrales(mensaje, umbrales)
                     ahora = time.monotonic()
                     alertas_email = []

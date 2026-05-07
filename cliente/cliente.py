@@ -123,7 +123,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Agente de monitoreo de servidor")
     parser.add_argument("--servidor", default="localhost", help="Host del servidor central")
     parser.add_argument("--port-tcp", type=int, default=9000, help="Puerto TCP del servidor")
-    parser.add_argument("--port-udp", type=int, default=9001, help="Puerto UDP del servidor")
+    parser.add_argument("--port-udp", type=int, default=9000, help="Puerto UDP del servidor")
     parser.add_argument("--intervalo", type=float, default=10, help="Segundos entre envíos de métricas")
     parser.add_argument("--intervalo-heartbeat", type=float, default=5, help="Segundos entre heartbeats")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
