@@ -18,7 +18,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Servidor central de monitoreo")
     parser.add_argument("--host", default="0.0.0.0", help="Interfaz donde escuchar")
     parser.add_argument("--port-tcp", type=int, default=9000, help="Puerto TCP para métricas")
-    parser.add_argument("--port-udp", type=int, default=9001, help="Puerto UDP para heartbeats")
+    parser.add_argument("--port-udp", type=int, default=9000, help="Puerto UDP para heartbeats")
     parser.add_argument("--threshold-cpu", type=float, default=80, help="Umbral de alerta CPU en %%")
     parser.add_argument("--threshold-ram", type=float, default=80, help="Umbral de alerta RAM en %%")
     parser.add_argument("--threshold-disco", type=float, default=90, help="Umbral de alerta disco en %%")
