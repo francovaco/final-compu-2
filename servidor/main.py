@@ -29,6 +29,7 @@ def main() -> None:
     parser.add_argument("--db-reportes", default="db/reportes.db", help="Ruta del SQLite de reportes")
     parser.add_argument("--db-retencion", type=float, default=72, help="Horas máximas de retención de métricas")
     parser.add_argument("--reporte-intervalo", type=float, default=24, help="Horas entre generación de reportes históricos")
+    parser.add_argument("--alert-cooldown", type=float, default=300, help="Segundos entre emails de la misma alerta para el mismo nodo")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -37,13 +38,11 @@ def main() -> None:
 
     # Cola compartida entre asyncio y el analizador
     queue = multiprocessing.Queue()
-    manager = multiprocessing.Manager()
-    db_lock = manager.Lock()
 
     # Lanzar el analizador como proceso hijo (sin daemon para que pueda crear workers)
     proceso_analizador = multiprocessing.Process(
         target=correr_analizador,
-        args=(queue, db_lock, args),
+        args=(queue, args),
     )
     proceso_analizador.start()
     logging.info("Proceso analizador iniciado (PID %d)", proceso_analizador.pid)
@@ -56,7 +55,6 @@ def main() -> None:
     finally:
         proceso_analizador.terminate()
         proceso_analizador.join()
-        manager.shutdown()
         logging.info("Proceso analizador terminado")
 
 

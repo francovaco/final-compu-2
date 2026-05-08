@@ -11,7 +11,6 @@
 
 ## Mejoras al sistema de alertas
 
-- **Cooldown de alertas** — evitar spam de emails cuando una métrica se mantiene alta por mucho tiempo
 - **Umbrales configurables por nodo** — actualmente los umbrales son globales para todos los nodos
 - **Reportes para nodos caídos** — actualmente `generar_reporte` solo procesa nodos activos en el dict de heartbeats
 
